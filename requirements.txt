@@ -1,0 +1,8 @@
+faicons==0.2.2
+ipyleaflet==0.19.1
+pandas==2.2.2
+pathlib==1.0.1
+plotly==5.22.0
+shiny==0.10.1
+shinylive==0.4.0
+shinywidgets==0.3.2
