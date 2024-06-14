@@ -54,7 +54,7 @@ Before you begin, ensure you have the following installed on your system:
 
 4. **Install the required packages**: With the virtual environment activated, install the necessary dependencies using the `requirements.txt` file:
    ```sh
-   pip install -r requirements.txt
+   pip install -r dashboard/requirements.txt
    ```
 
 ### Running the Application
