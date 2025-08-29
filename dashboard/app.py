@@ -8,25 +8,23 @@ import plotly.graph_objects as go
 from plotly_streaming import render_plotly_streaming
 from pathlib import Path
 import faicons
+from datetime import datetime
 
 category_colors = {
     "Serverless": 0,
     "Containers": 1,
-    "Cloud Operations": 2,
-    "Security & Identity": 3,
-    "Dev Tools": 4,
-    "Machine Learning & GenAI": 5,
-    "Data": 6,
-    "Networking & Content Delivery": 7,
-    "Front-End Web & Mobile": 8,
-    "Storage": 9,
-    "Game Tech": 10,
+    "Dev Tools": 2,
+    "Security": 3,
+    "Cloud Operations": 4,
+    "Data": 5,
+    "Network C&D": 6,
+    "AI Engineering": 7,
+    "Machine Learning": 8,
 }
-
 
 def read_data():
     df = pd.read_csv(
-        Path(__file__).parent / "data/anonymized_cb_data.csv", delimiter=";"
+        Path(__file__).parent / "data/anonymized_cb_data_2025.csv", delimiter=";"
     )
     df["cohort"] = df["cohort"].astype(str)
     return df
@@ -261,7 +259,7 @@ app_ui = ui.page_fillable(
             open="closed",
         ),
         footer=ui.h6(
-            "Made by Robert Garcia Ventura © 2024",
+            f"Made by Robert Garcia Ventura © {datetime.now().year}",
             style="color: white !important; text-align: center;",
         ),
         window_title="AWS Community Builders Dashboard",
@@ -304,8 +302,23 @@ def server(input, output, session):
 
     df = read_data()
 
-    df_countries = pd.read_csv(
+    # Read countries metadata (GPS coordinates only)
+    df_countries_metadata = pd.read_csv(
         Path(__file__).parent / "data/countries.csv", delimiter=";"
+    )
+    
+    # Calculate country counts from CB data
+    df_country_counts = (
+        df.groupby("country")
+        .size()
+        .reset_index(name="count")
+    )
+    
+    # Merge GPS coordinates with calculated counts
+    df_countries = df_countries_metadata.merge(
+        df_country_counts, 
+        on="country", 
+        how="inner"  # Only include countries that have CB members
     )
 
     @reactive.Calc
@@ -593,7 +606,7 @@ def server(input, output, session):
             },
             title="Top 10 countries with more Community Builders by Cohort",
             template=get_color_template(input.dark_mode()),
-            color_discrete_sequence=get_color_theme(input.color_theme()),
+            color_discrete_sequence=(get_color_theme(input.color_theme())[:(len(df_top_10_countries.cohort.unique()))][::-1]),
             category_orders={
                 "cohort": ["2024", "2023", "2022", "2021", "2020", "2020 beta"]
             },
