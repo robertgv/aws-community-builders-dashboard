@@ -22,12 +22,30 @@ category_colors = {
     "Machine Learning": 8,
 }
 
+DATA_FILE = "anonymized_cb_data_2026.csv"
+UNKNOWN_COUNTRY = "Unknown"
+COHORT_ORDER = [
+    "2020 beta",
+    "2020",
+    "2021",
+    "2022",
+    "2023",
+    "2024",
+    "2025",
+    "2026",
+]
+
+
 def read_data():
     df = pd.read_csv(
-        Path(__file__).parent / "data/anonymized_cb_data_2025.csv", delimiter=";"
+        Path(__file__).parent / f"data/{DATA_FILE}", delimiter=";"
     )
     df["cohort"] = df["cohort"].astype(str)
     return df
+
+
+def country_plot_data(df):
+    return df[df["country"] != UNKNOWN_COUNTRY].copy()
 
 
 def get_color_theme(theme, list_categories=None):
@@ -374,8 +392,9 @@ def server(input, output, session):
     @render_plotly_streaming()
     def plot_tmp():
 
+        df_country_plot = country_plot_data(df)
         df_countries = (
-            df.groupby("country")
+            df_country_plot.groupby("country")
             .size()
             .reset_index(name="count")
             .sort_values("count", ascending=False)[:10]
@@ -385,7 +404,7 @@ def server(input, output, session):
             [
                 [
                     "Others",
-                    df.groupby("country")
+                    df_country_plot.groupby("country")
                     .size()
                     .reset_index(name="count")
                     .sort_values("count", ascending=False)[10:]["count"]
@@ -541,9 +560,7 @@ def server(input, output, session):
             color_discrete_sequence=get_color_theme(
                 input.color_theme(), df_counts.category
             ),
-            category_orders={
-                "cohort": ["2020 beta", "2020", "2021", "2022", "2023", "2024"]
-            },
+            category_orders={"cohort": COHORT_ORDER},
         )
 
         fig3.update_traces(textposition="inside")
@@ -574,8 +591,9 @@ def server(input, output, session):
     @render_plotly_streaming()
     def plot_3():
 
+        df_country_plot = country_plot_data(df)
         top_10_countries = (
-            df.groupby(["country"])
+            df_country_plot.groupby(["country"])
             .size()
             .reset_index(name="count")
             .sort_values("count", ascending=False)[:10]
@@ -584,9 +602,13 @@ def server(input, output, session):
         country_index = {
             country: index for index, country in enumerate(list_top_10_countries)
         }
-        df["country_index"] = df["country"].map(country_index)
+        df_country_plot["country_index"] = df_country_plot["country"].map(
+            country_index
+        )
         df_top_10_countries = (
-            df[[row in list_top_10_countries for row in df.country]]
+            df_country_plot[
+                df_country_plot["country"].isin(list_top_10_countries)
+            ]
             .groupby(["country", "country_index", "cohort"])
             .size()
             .reset_index(name="count")
@@ -607,9 +629,7 @@ def server(input, output, session):
             title="Top 10 countries with more Community Builders by Cohort",
             template=get_color_template(input.dark_mode()),
             color_discrete_sequence=(get_color_theme(input.color_theme())[:(len(df_top_10_countries.cohort.unique()))][::-1]),
-            category_orders={
-                "cohort": ["2024", "2023", "2022", "2021", "2020", "2020 beta"]
-            },
+            category_orders={"cohort": list(reversed(COHORT_ORDER))},
         )
         fig4.update_traces(textposition="inside")
 
