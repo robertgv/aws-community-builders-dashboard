@@ -20,12 +20,14 @@ We welcome pull requests for bug fixes, improvements, and new features. To submi
 1. **Fork the repository**: Click the "Fork" button on the top right corner of the repository page on GitHub.
 
 2. **Clone your fork**: Clone the forked repository to your local machine:
+
    ```sh
    git clone https://github.com/robertgv/aws-community-builders-dashboard.git
    cd aws-community-builders-dashboard
    ```
 
 3. **Create a new branch**: Create a new branch for your work to keep changes isolated:
+
    ```sh
    git checkout -b [your-branch-name]
    ```
@@ -33,16 +35,19 @@ We welcome pull requests for bug fixes, improvements, and new features. To submi
 4. **Make your changes**: Implement your changes and ensure they follow the project's coding style and standards.
 
 5. **Test your changes**: Run existing tests and add new tests if necessary to ensure your changes work as expected.
+
    ```sh
    pre-commit run --all-files --show-diff-on-failure
    ```
 
 6. **Commit your changes**: Commit your changes with a clear and descriptive commit message:
+
    ```sh
    git commit -m "Description of your changes"
    ```
 
 7. **Push your changes**: Push your changes to your forked repository:
+
    ```sh
    git push origin [your-branch-name]
    ```

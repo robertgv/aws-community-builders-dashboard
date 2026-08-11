@@ -212,13 +212,9 @@ def main():
             }
         )
 
-    unknown_regions = sorted(
-        {row["country"] for row in output_rows if row["region"] == "UNKNOWN"}
-    )
+    unknown_regions = sorted({row["country"] for row in output_rows if row["region"] == "UNKNOWN"})
     if unknown_regions:
-        raise SystemExit(
-            "Missing region mappings for: " + ", ".join(unknown_regions)
-        )
+        raise SystemExit("Missing region mappings for: " + ", ".join(unknown_regions))
 
     with OUTPUT_FILE.open("w", newline="", encoding="utf-8") as output_file:
         writer = csv.DictWriter(
@@ -234,9 +230,7 @@ def main():
     print(f"Wrote {len(output_rows)} rows to {OUTPUT_FILE}")
     if skipped_rows:
         print(f"Skipped rows: {dict(skipped_rows)}")
-    unknown_country_rows = sum(
-        row["country"] == UNKNOWN_COUNTRY for row in output_rows
-    )
+    unknown_country_rows = sum(row["country"] == UNKNOWN_COUNTRY for row in output_rows)
     print(f"Unknown country rows preserved: {unknown_country_rows}")
     print(f"Categories: {sorted({row['category'] for row in output_rows})}")
     print(f"Cohorts: {sorted({row['cohort'] for row in output_rows})}")

@@ -26,9 +26,7 @@ def _to_json_repr(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-def render_plotly_streaming(
-    fn=None, *, recreate_key=lambda: None, update=("layout", "data")
-):
+def render_plotly_streaming(fn=None, *, recreate_key=lambda: None, update=("layout", "data")):
     """Custom decorator for Plotly streaming plots. This is similar to
     shinywidgets.render_widget, except:
 
