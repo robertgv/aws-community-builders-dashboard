@@ -6,9 +6,12 @@ import shiny.experimental as x
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly_streaming import render_plotly_streaming
-from pathlib import Path
 import faicons
 from datetime import datetime
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+VERSION_FILE = ROOT_DIR / "VERSION"
 
 category_colors = {
     "Serverless": 0,
@@ -22,12 +25,38 @@ category_colors = {
     "Machine Learning": 8,
 }
 
+DATA_FILE = "anonymized_cb_data_2026.csv"
+UNKNOWN_COUNTRY = "Unknown"
+COHORT_ORDER = [
+    "2020 beta",
+    "2020",
+    "2021",
+    "2022",
+    "2023",
+    "2024",
+    "2025",
+    "2026",
+]
+
+
+def read_version():
+    try:
+        return VERSION_FILE.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return "development"
+
+
+APP_VERSION = read_version()
+
+
 def read_data():
-    df = pd.read_csv(
-        Path(__file__).parent / "data/anonymized_cb_data_2025.csv", delimiter=";"
-    )
+    df = pd.read_csv(Path(__file__).parent / f"data/{DATA_FILE}", delimiter=";")
     df["cohort"] = df["cohort"].astype(str)
     return df
+
+
+def country_plot_data(df):
+    return df[df["country"] != UNKNOWN_COUNTRY].copy()
 
 
 def get_color_theme(theme, list_categories=None):
@@ -125,18 +154,14 @@ def create_custom_icon(count):
     """
 
     # Create a custom DivIcon
-    return DivIcon(
-        icon_size=(50, 50), icon_anchor=(25, 25), html=html_code, class_name="dummy"
-    )
+    return DivIcon(icon_size=(50, 50), icon_anchor=(25, 25), html=html_code, class_name="dummy")
 
 
 def create_custom_popup(country, total, dark_mode, color_theme):
 
     # Group by 'region' and count occurrences of each region
     df = read_data()
-    category_counts = (
-        df[df.country == country].groupby("category").size().reset_index(name="count")
-    )
+    category_counts = df[df.country == country].groupby("category").size().reset_index(name="count")
 
     # Create a pie chart using plotly.graph_objects
     data = [
@@ -145,9 +170,7 @@ def create_custom_popup(country, total, dark_mode, color_theme):
             values=category_counts["count"],
             hole=0.3,
             textinfo="percent+label",
-            marker=dict(
-                colors=get_color_theme(color_theme, category_counts["category"])
-            ),
+            marker=dict(colors=get_color_theme(color_theme, category_counts["category"])),
         )
     ]
 
@@ -162,9 +185,7 @@ def create_custom_popup(country, total, dark_mode, color_theme):
     )
 
     figure = go.Figure(data=data, layout=layout)
-    figure.update_traces(
-        textposition="outside", textinfo="percent+label", textfont=dict(size=15)
-    )
+    figure.update_traces(textposition="outside", textinfo="percent+label", textfont=dict(size=15))
     figure.layout.width = 600
     figure.layout.height = 400
 
@@ -188,16 +209,12 @@ app_ui = ui.page_fillable(
                     ),
                     ui.value_box(
                         title="N° Countries",
-                        showcase=faicons.icon_svg(
-                            "globe", width="50px", fill="#FD9902 !important"
-                        ),
+                        showcase=faicons.icon_svg("globe", width="50px", fill="#FD9902 !important"),
                         value=len(read_data().country.unique()),
                     ),
                     ui.value_box(
                         title="N° Categories",
-                        showcase=faicons.icon_svg(
-                            "list", width="50px", fill="#FD9902 !important"
-                        ),
+                        showcase=faicons.icon_svg("list", width="50px", fill="#FD9902 !important"),
                         value=len(read_data().category.unique()),
                     ),
                     ui.value_box(
@@ -259,7 +276,7 @@ app_ui = ui.page_fillable(
             open="closed",
         ),
         footer=ui.h6(
-            f"Made by Robert Garcia Ventura © {datetime.now().year}",
+            f"Made by Robert Garcia Ventura © {datetime.now().year} | v{APP_VERSION}",
             style="color: white !important; text-align: center;",
         ),
         window_title="AWS Community Builders Dashboard",
@@ -303,22 +320,14 @@ def server(input, output, session):
     df = read_data()
 
     # Read countries metadata (GPS coordinates only)
-    df_countries_metadata = pd.read_csv(
-        Path(__file__).parent / "data/countries.csv", delimiter=";"
-    )
-    
+    df_countries_metadata = pd.read_csv(Path(__file__).parent / "data/countries.csv", delimiter=";")
+
     # Calculate country counts from CB data
-    df_country_counts = (
-        df.groupby("country")
-        .size()
-        .reset_index(name="count")
-    )
-    
+    df_country_counts = df.groupby("country").size().reset_index(name="count")
+
     # Merge GPS coordinates with calculated counts
     df_countries = df_countries_metadata.merge(
-        df_country_counts, 
-        on="country", 
-        how="inner"  # Only include countries that have CB members
+        df_country_counts, on="country", how="inner"  # Only include countries that have CB members
     )
 
     @reactive.Calc
@@ -334,9 +343,7 @@ def server(input, output, session):
         )
 
         with ui.Progress(min=0, max=len(df_countries)) as progress:
-            progress.set(
-                message="Calculation in progress", detail="This may take a while..."
-            )
+            progress.set(message="Calculation in progress", detail="This may take a while...")
 
             for index, row in df_countries.iterrows():
                 lat = float(row["latitud"])
@@ -374,8 +381,9 @@ def server(input, output, session):
     @render_plotly_streaming()
     def plot_tmp():
 
+        df_country_plot = country_plot_data(df)
         df_countries = (
-            df.groupby("country")
+            df_country_plot.groupby("country")
             .size()
             .reset_index(name="count")
             .sort_values("count", ascending=False)[:10]
@@ -385,7 +393,7 @@ def server(input, output, session):
             [
                 [
                     "Others",
-                    df.groupby("country")
+                    df_country_plot.groupby("country")
                     .size()
                     .reset_index(name="count")
                     .sort_values("count", ascending=False)[10:]["count"]
@@ -411,9 +419,7 @@ def server(input, output, session):
         fig0.update_layout(
             paper_bgcolor=get_background_color_plotly(input.dark_mode()), title_x=0.5
         )
-        fig0.update_traces(
-            textposition="outside", textinfo="percent+label", textfont=dict(size=15)
-        )
+        fig0.update_traces(textposition="outside", textinfo="percent+label", textfont=dict(size=15))
         fig0.update_layout(showlegend=False)
 
         return fig0
@@ -438,9 +444,7 @@ def server(input, output, session):
         fig0.update_layout(
             paper_bgcolor=get_background_color_plotly(input.dark_mode()), title_x=0.5
         )
-        fig0.update_traces(
-            textposition="outside", textinfo="percent+label", textfont=dict(size=15)
-        )
+        fig0.update_traces(textposition="outside", textinfo="percent+label", textfont=dict(size=15))
         fig0.update_layout(showlegend=False)
 
         return fig0
@@ -464,9 +468,7 @@ def server(input, output, session):
         fig1.update_layout(
             paper_bgcolor=get_background_color_plotly(input.dark_mode()), title_x=0.5
         )
-        fig1.update_traces(
-            textposition="outside", textinfo="percent+label", textfont=dict(size=15)
-        )
+        fig1.update_traces(textposition="outside", textinfo="percent+label", textfont=dict(size=15))
         fig1.update_layout(showlegend=False)
 
         return fig1
@@ -490,17 +492,13 @@ def server(input, output, session):
             labels={"category": "Category", "count": "Number of Community Builders"},
             title="Community Builders by Category",
             template=get_color_template(input.dark_mode()),
-            color_discrete_sequence=get_color_theme(
-                input.color_theme(), df_categories.category
-            ),
+            color_discrete_sequence=get_color_theme(input.color_theme(), df_categories.category),
         )
 
         fig2.update_layout(
             paper_bgcolor=get_background_color_plotly(input.dark_mode()), title_x=0.5
         )
-        fig2.update_traces(
-            textposition="outside", textinfo="percent+label", textfont=dict(size=15)
-        )
+        fig2.update_traces(textposition="outside", textinfo="percent+label", textfont=dict(size=15))
         fig2.update_layout(showlegend=False)
 
         return fig2
@@ -517,10 +515,7 @@ def server(input, output, session):
             .sort_values(by=["cohort", "category"])
         )
         total_cohort = (
-            df[["cohort"]]
-            .value_counts()
-            .reset_index(name="count")
-            .sort_values(by="cohort")
+            df[["cohort"]].value_counts().reset_index(name="count").sort_values(by="cohort")
         )
 
         # Create the bar plot
@@ -538,12 +533,8 @@ def server(input, output, session):
             },
             title="N° Community Builders by Cohort and Category",
             template=get_color_template(input.dark_mode()),
-            color_discrete_sequence=get_color_theme(
-                input.color_theme(), df_counts.category
-            ),
-            category_orders={
-                "cohort": ["2020 beta", "2020", "2021", "2022", "2023", "2024"]
-            },
+            color_discrete_sequence=get_color_theme(input.color_theme(), df_counts.category),
+            category_orders={"cohort": COHORT_ORDER},
         )
 
         fig3.update_traces(textposition="inside")
@@ -574,19 +565,18 @@ def server(input, output, session):
     @render_plotly_streaming()
     def plot_3():
 
+        df_country_plot = country_plot_data(df)
         top_10_countries = (
-            df.groupby(["country"])
+            df_country_plot.groupby(["country"])
             .size()
             .reset_index(name="count")
             .sort_values("count", ascending=False)[:10]
         )
         list_top_10_countries = top_10_countries["country"].values
-        country_index = {
-            country: index for index, country in enumerate(list_top_10_countries)
-        }
-        df["country_index"] = df["country"].map(country_index)
+        country_index = {country: index for index, country in enumerate(list_top_10_countries)}
+        df_country_plot["country_index"] = df_country_plot["country"].map(country_index)
         df_top_10_countries = (
-            df[[row in list_top_10_countries for row in df.country]]
+            df_country_plot[df_country_plot["country"].isin(list_top_10_countries)]
             .groupby(["country", "country_index", "cohort"])
             .size()
             .reset_index(name="count")
@@ -606,10 +596,12 @@ def server(input, output, session):
             },
             title="Top 10 countries with more Community Builders by Cohort",
             template=get_color_template(input.dark_mode()),
-            color_discrete_sequence=(get_color_theme(input.color_theme())[:(len(df_top_10_countries.cohort.unique()))][::-1]),
-            category_orders={
-                "cohort": ["2024", "2023", "2022", "2021", "2020", "2020 beta"]
-            },
+            color_discrete_sequence=(
+                get_color_theme(input.color_theme())[: (len(df_top_10_countries.cohort.unique()))][
+                    ::-1
+                ]
+            ),
+            category_orders={"cohort": list(reversed(COHORT_ORDER))},
         )
         fig4.update_traces(textposition="inside")
 
